@@ -4,7 +4,7 @@
 	$qualityId = isset($_GET['qualityId']) ? $_GET['qualityId'] : 2;
 	
 	function e($a) {
-		return html_entities($a);
+		return htmlentities($a);
 	}
 ?>
 <!doctype html>
