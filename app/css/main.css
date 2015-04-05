@@ -17,5 +17,5 @@ body {
 }
 
 .vjs-error-display {
-	display: none;
+	display: none !important;
 }
