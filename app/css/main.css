@@ -15,3 +15,7 @@ body {
 	right: 0;
 	bottom: 0;
 }
+
+.vjs-error-display {
+	display: none;
+}
