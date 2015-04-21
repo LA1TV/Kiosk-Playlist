@@ -32,7 +32,7 @@ $(document).ready(function() {
 		function request(url, callback) {
 			$.ajax({
 				url: apiBaseUrl+"/"+url,
-				timeout: 5000,
+				timeout: 30000,
 				dataType: "json",
 				headers: {
 					"X-Api-Key": apiKey
