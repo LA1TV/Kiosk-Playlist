@@ -79,22 +79,32 @@ $(document).ready(function() {
 				}
 				
 				
-				var found = currentMediaItemId === null;
-				var url = null;
-				for (var j=0; j<2 && url === null; j++) {
-					for (var i=0; i<candidates.length; i++) {
-						var candidate = candidates[i];
-						if (found) {
-							url = candidate.url;
-							currentMediaItemId = candidate.mediaItemId;
-							break;
+				// now pick a candidate
+				if (!randomise) {
+					// pick the next one
+					var found = currentMediaItemId === null;
+					var url = null;
+					for (var j=0; j<2 && url === null; j++) {
+						for (var i=0; i<candidates.length; i++) {
+							var candidate = candidates[i];
+							if (found) {
+								url = candidate.url;
+								currentMediaItemId = candidate.mediaItemId;
+								break;
+							}
+							
+							if (candidate.mediaItemId === currentMediaItemId) {
+								found = true;
+							}
 						}
-						
-						if (candidate.mediaItemId === currentMediaItemId) {
-							found = true;
-						}
+						found = true;
 					}
-					found = true;
+				}
+				else {
+					// pick a random item
+					if (candidates.length > 0) {
+						url = candidates[Math.floor(Math.random() * candidates.length)].url;
+					}
 				}
 				
 				if (url === null) {
