@@ -10,6 +10,7 @@ $(document).ready(function() {
 		var apiKey = $(this).attr("data-api-key");
 		var playlistId = parseInt($(this).attr("data-playlist-id"));
 		var qualityId = parseInt($(this).attr("data-quality-id"));
+		var randomise = $(this).attr("data-randomise") === "1"
 		
 		var currentMediaItemId = null;
 		var $video = null;
@@ -51,40 +52,45 @@ $(document).ready(function() {
 		function doSomething() {
 			request("playlists/"+playlistId+"/mediaItems", function(data) {
 				var mediaItems = data.data;
-				var found = currentMediaItemId === null;
-				var url = null;
-				for (var j=0; j<2 && url === null; j++) {
-					for (var i=0; i<mediaItems.length; i++) {
-						var mediaItem = mediaItems[i];
-						if (mediaItem.vod === null || !mediaItem.vod.available) {
-							continue;
-						}
-						
-						if (found) {
-							if (mediaItem.vod.urlData !== null) {
-								for (var k=0; k<mediaItem.vod.urlData.length; k++) {
-									var urlsAndQualities = mediaItem.vod.urlData[k];
-									if (urlsAndQualities.quality.id === qualityId) {
-										for (var l=0; l<urlsAndQualities.urls.length; l++) {
-											var urlAndType = urlsAndQualities.urls[l];
-											if (urlAndType.type === "video/mp4") {
-												url = urlAndType.url;
-												currentMediaItemId = mediaItem.id;
-												break;
-											}
-										}
-									}
-									if (url !== null) {
+				
+				// contains {mediaItemId, url}
+				var candidates = [];
+				
+				for (var i=0; i<mediaItems.length; i++) {
+					var mediaItem = mediaItems[i];
+					if (mediaItem.vod === null || !mediaItem.vod.available) {
+						continue;
+					}
+					
+					if (mediaItem.vod.urlData !== null) {
+						for (var k=0; k<mediaItem.vod.urlData.length; k++) {
+							var urlsAndQualities = mediaItem.vod.urlData[k];
+							if (urlsAndQualities.quality.id === qualityId) {
+								for (var l=0; l<urlsAndQualities.urls.length; l++) {
+									var urlAndType = urlsAndQualities.urls[l];
+									if (urlAndType.type === "video/mp4") {
+										candidates.push({id: mediaItem.id, url: urlAndType.url});
 										break;
 									}
 								}
 							}
-							if (url !== null) {
-								break;
-							}
+						}
+					}
+				}
+				
+				
+				var found = currentMediaItemId === null;
+				var url = null;
+				for (var j=0; j<2 && url === null; j++) {
+					for (var i=0; i<candidates.length; i++) {
+						var candidate = candidates[i];
+						if (found) {
+							url = candidate.url;
+							currentMediaItemId = candidate.mediaItemId;
+							break;
 						}
 						
-						if (mediaItem.id === currentMediaItemId) {
+						if (candidate.mediaItemId === currentMediaItemId) {
 							found = true;
 						}
 					}

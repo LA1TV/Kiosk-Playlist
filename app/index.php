@@ -2,6 +2,7 @@
 	$apiKey = $_GET['apiKey'];
 	$playlistId = $_GET['playlistId'];
 	$qualityId = isset($_GET['qualityId']) ? $_GET['qualityId'] : 2;
+	$randomise = isset($_GET['random']);
 	
 	function e($a) {
 		return htmlentities($a);
@@ -29,6 +30,6 @@
         <![endif]-->
     </head>
     <body>
-		<div class="container" data-api-key="<?=e($apiKey);?>" data-playlist-id="<?=e($playlistId);?>" data-quality-id="<?=e($qualityId);?>"></div>
+		<div class="container" data-api-key="<?=e($apiKey);?>" data-playlist-id="<?=e($playlistId);?>" data-quality-id="<?=e($qualityId);?>" data-randomise="<?=$randomise?"1":"0"?>"></div>
     </body>
 </html>
