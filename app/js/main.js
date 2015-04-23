@@ -63,13 +63,15 @@ $(document).ready(function() {
 					}
 					
 					if (mediaItem.vod.urlData !== null) {
-						for (var k=0; k<mediaItem.vod.urlData.length; k++) {
+						var foundCandidate = false;
+						for (var k=0; k<mediaItem.vod.urlData.length && !foundCandidate; k++) {
 							var urlsAndQualities = mediaItem.vod.urlData[k];
 							if (urlsAndQualities.quality.id === qualityId) {
 								for (var l=0; l<urlsAndQualities.urls.length; l++) {
 									var urlAndType = urlsAndQualities.urls[l];
 									if (urlAndType.type === "video/mp4") {
 										candidates.push({id: mediaItem.id, url: urlAndType.url});
+										foundCandidate = true;
 										break;
 									}
 								}
