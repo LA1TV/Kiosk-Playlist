@@ -90,8 +90,6 @@ $(document).ready(function() {
 				if (randomise) {
 					shuffle(candidates);
 				}
-				// reverse array because items are popped of the start of the array
-				candidates.reverse();
 				queue = candidates;
 				if (callback) {
 					callback();
