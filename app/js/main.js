@@ -123,7 +123,7 @@ $(document).ready(function() {
 		
 		function loadMediaItem(mediaItem, qualityId) {
 			console.log("Loading media item.", mediaItem);
-			var iframeSrc = mediaItem.embed.iframeUrl+"?kiosk=1"; // get the player in kiosk mode
+			var iframeSrc = mediaItem.embed.iframeUrl+"?kiosk=1&vodQualityId="+qualityId; // get the player in kiosk mode
 			$iframe = $("<iframe />").attr("frameborder", 0).attr("allowfullscreen", true).attr("webkitallowfullscreen", true).attr("mozallowfullscreen", true).attr("src", iframeSrc);
 			$(self).append($iframe);
 			
