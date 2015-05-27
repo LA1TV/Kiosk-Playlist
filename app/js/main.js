@@ -54,7 +54,7 @@ $(document).ready(function() {
 		
 		// populate the queue with items
 		function refillQueue(callback) {
-			var requestUrl = playlistId !== null ? "playlists/"+playlistId+"/mediaItems" : "mediaItems?sortMode=SCHEDULED_PUBLISH_TIME&sortDirection=DESC&vodIncludeSetting=HAS_AVAILABLE_VOD&limit=30";
+			var requestUrl = playlistId !== null ? "playlists/"+playlistId+"/mediaItems" : "mediaItems?sortMode=SCHEDULED_PUBLISH_TIME&sortDirection=DESC&vodIncludeSetting=HAS_AVAILABLE_VOD&limit=25";
 			request(requestUrl, function(data) {
 				var mediaItems = playlistId !== null ? data.data : data.data.mediaItems;
 
