@@ -1,6 +1,6 @@
 <?php
 	$apiKey = $_GET['apiKey'];
-	$playlistId = $_GET['playlistId'];
+	$playlistId = isset($_GET['playlistId']) ? $_GET['playlistId'] : "";
 	$qualityIds = isset($_GET['qualityIds']) ? $_GET['qualityIds'] : "1,2,3,4,5,6,7,8";
 	$randomise = isset($_GET['random']);
 	

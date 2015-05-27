@@ -7,7 +7,7 @@ $(document).ready(function() {
 		var self = this;
 		
 		var apiKey = $(this).attr("data-api-key");
-		var playlistId = parseInt($(this).attr("data-playlist-id"));
+		var playlistId = $(this).attr("data-playlist-id") !== "" ? parseInt($(this).attr("data-playlist-id")) : null;
 		var qualityIds = $.map($(this).attr("data-quality-ids").split(","), function(a){return parseInt(a);});
 		var randomise = $(this).attr("data-randomise") === "1"
 	
@@ -52,45 +52,27 @@ $(document).ready(function() {
 			});
 		}
 		
-		
 		// populate the queue with items
 		function refillQueue(callback) {
-			request("playlists/"+playlistId+"/mediaItems", function(data) {
-				var mediaItems = data.data;
+			var requestUrl = playlistId !== null ? "playlists/"+playlistId+"/mediaItems" : "mediaItems?sortMode=SCHEDULED_PUBLISH_TIME&sortDirection=DESC&vodIncludeSetting=HAS_AVAILABLE_VOD&limit=30";
+			request(requestUrl, function(data) {
+				var mediaItems = playlistId !== null ? data.data : data.data.mediaItems;
 
 				// to contain all media items which are supported in form {mediaItem, chosenQualityId}
 				var candidates = [];
-				
 				for (var i=0; i<mediaItems.length; i++) {
 					var mediaItem = mediaItems[i];
-					if (!isMediaItemValid(mediaItem)) {
-						continue;
+					var candidate = createCandidateFromMediaItem(mediaItem);
+					
+					if (candidate !== null) {
+						candidates.push(candidate);
 					}
-					var availableQualityIds = [];
-					for (var j=0; j<mediaItem.vod.qualities.length; j++) {
-						availableQualityIds.push(mediaItem.vod.qualities[j].id);
-					}
-					var chosenQualityId = null;
-					for (var j=0; j<qualityIds.length && chosenQualityId === null; j++) {
-						var proposedQualityId = qualityIds[j];
-						if ($.inArray(proposedQualityId, availableQualityIds) !== -1) {
-							chosenQualityId = proposedQualityId;
-						}
-					}
-					if (chosenQualityId === null) {
-						// doesn't have a quality that is needed
-						continue;
-					}
-					candidates.push({
-						mediaItem: mediaItem,
-						chosenQualityId: chosenQualityId
-					});
 				}
-				
 				if (randomise) {
 					shuffle(candidates);
 				}
 				queue = candidates;
+				newMediaItemIds = [];
 				if (callback) {
 					callback();
 				}
@@ -101,10 +83,35 @@ $(document).ready(function() {
 			return mediaItem.vod !== null && mediaItem.vod.available;
 		}
 		
+		function createCandidateFromMediaItem(mediaItem) {
+			if (!isMediaItemValid(mediaItem)) {
+				return null;
+			}
+			var availableQualityIds = [];
+			for (var j=0; j<mediaItem.vod.qualities.length; j++) {
+				availableQualityIds.push(mediaItem.vod.qualities[j].id);
+			}
+			var chosenQualityId = null;
+			for (var j=0; j<qualityIds.length && chosenQualityId === null; j++) {
+				var proposedQualityId = qualityIds[j];
+				if ($.inArray(proposedQualityId, availableQualityIds) !== -1) {
+					chosenQualityId = proposedQualityId;
+				}
+			}
+			if (chosenQualityId === null) {
+				// doesn't have a quality that is needed
+				return null;
+			}
+			
+			return {
+				mediaItem: mediaItem,
+				chosenQualityId: chosenQualityId
+			};
+		}
+		
 		function fillQueueIfNecessary(callback) {
 			if (queue.length > 0) {
 				callback();
-				return;
 			}
 			else {
 				console.log("Queue empty. Refilling...");
@@ -126,9 +133,10 @@ $(document).ready(function() {
 				candidate = queue.shift();
 				
 				// check this candidate is still available and valid
-				request("playlists/"+playlistId+"/mediaItems/"+candidate.mediaItem.id, function(data) {
+				var requestUrl = playlistId !== null ? "playlists/"+playlistId+"/mediaItems/"+candidate.mediaItem.id : "mediaItems/"+candidate.mediaItem.id;
+				request(requestUrl, function(data) {
 					console.log("Checking next item is still a valid option.");
-					var mediaItem = data.data;
+					var mediaItem = playlistId !== null ? data.data : data.data.mediaItem;
 					if (!isMediaItemValid(mediaItem)) {
 						console.log("Item no longer valid. Skipping...");
 						loadNextItem();
@@ -189,7 +197,9 @@ $(document).ready(function() {
 				if (!playing) {
 					onVideoEnded();
 				}
-				setTimeout(checkPlaying, 1000);
+				else {
+					playingCheckTimerId = setTimeout(checkPlaying, 1000);
+				}
 			}
 		}
 		
