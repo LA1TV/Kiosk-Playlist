@@ -1,5 +1,4 @@
 $(document).ready(function() {
-	videojs.options.flash.swf = "video-js.swf";
 	
 	var apiBaseUrl = "https://www.la1tv.co.uk/api/v1";
 	
@@ -9,28 +8,27 @@ $(document).ready(function() {
 		
 		var apiKey = $(this).attr("data-api-key");
 		var playlistId = parseInt($(this).attr("data-playlist-id"));
-		var qualityId = parseInt($(this).attr("data-quality-id"));
+		var qualityIds = $.map($(this).attr("data-quality-ids").split(","), function(a){return parseInt(a);});
 		var randomise = $(this).attr("data-randomise") === "1"
 		
-		var currentMediaItemId = null;
-		var $video = null;
-		var videoJsPlayer = null;
+		var lastCandidate = null;
+		var $iframe = null;
+		var playingCheckTimerId = null;
+		var apiUpdateTriggerTimerId = null;
+		var playing = false;
 		
 		initialise();
 
 		function initialise() {
 			request("permissions", function(data) {
-				var permissions = data.data;
-				if (!permissions.vodUris) {
-					onError("Do not have \"vodUris\" permission.");
-					return;
-				}
+				// no special permissions needed
 				console.log("Initialised!");
-				doSomething();
+				loadNextVideo();
 			});
 		}
 		
 		function request(url, callback) {
+			console.log("Making api request.", url);
 			$.ajax({
 				url: apiBaseUrl+"/"+url,
 				timeout: 30000,
@@ -41,19 +39,23 @@ $(document).ready(function() {
 				cache: false,
 				type: "GET"
 			}).done(function(data, textStatus, jqXHR) {
+				console.log("Api request completed.");
 				callback(data);
 			}).fail(function() {
-				onError("Error making request to api. URL: "+url);
+				console.log("Error making request to api. Retrying shortly.");
+				setTimeout(function() {
+					request(url, callback);
+				}, 5000);
 			});
 		}
 		
 		
 		// figure out what to do do next and do it
-		function doSomething() {
+		function loadNextVideo() {
 			request("playlists/"+playlistId+"/mediaItems", function(data) {
 				var mediaItems = data.data;
-				
-				// contains {mediaItemId, url}
+
+				// to contain all media items which are supported in form {mediaItem, chosenQualityId}
 				var candidates = [];
 				
 				for (var i=0; i<mediaItems.length; i++) {
@@ -61,41 +63,40 @@ $(document).ready(function() {
 					if (mediaItem.vod === null || !mediaItem.vod.available) {
 						continue;
 					}
-					
-					if (mediaItem.vod.urlData !== null) {
-						var foundCandidate = false;
-						for (var k=0; k<mediaItem.vod.urlData.length && !foundCandidate; k++) {
-							var urlsAndQualities = mediaItem.vod.urlData[k];
-							if (urlsAndQualities.quality.id === qualityId) {
-								for (var l=0; l<urlsAndQualities.urls.length; l++) {
-									var urlAndType = urlsAndQualities.urls[l];
-									if (urlAndType.type === "video/mp4") {
-										candidates.push({id: mediaItem.id, url: urlAndType.url});
-										foundCandidate = true;
-										break;
-									}
-								}
-							}
+					var availableQualityIds = [];
+					for (var j=0; j<mediaItem.vod.qualities.length; j++) {
+						availableQualityIds.push(mediaItem.vod.qualities[j].id);
+					}
+					var chosenQualityId = null;
+					for (var j=0; j<qualityIds.length && chosenQualityId === null; j++) {
+						var proposedQualityId = qualityIds[j];
+						if ($.inArray(proposedQualityId, availableQualityIds) !== -1) {
+							chosenQualityId = proposedQualityId;
 						}
 					}
+					if (chosenQualityId === null) {
+						// doesn't have a quality that is needed
+						continue;
+					}
+					candidates.push({
+						mediaItem: mediaItem,
+						chosenQualityId: chosenQualityId
+					});
 				}
 				
-				
 				// now pick a candidate
+				var chosenCandidate = null;
 				if (!randomise) {
 					// pick the next one
-					var found = currentMediaItemId === null;
-					var url = null;
-					for (var j=0; j<2 && url === null; j++) {
+					var found = chosenCandidate !== null;
+					for (var j=0; j<2 && chosenCandidate === null; j++) {
 						for (var i=0; i<candidates.length; i++) {
 							var candidate = candidates[i];
 							if (found) {
-								url = candidate.url;
-								currentMediaItemId = candidate.mediaItemId;
+								chosenCandidate = candidate;
 								break;
 							}
-							
-							if (candidate.mediaItemId === currentMediaItemId) {
+							if (lastCandidate !== null && candidate.mediaItem.id === lastCandidate.mediaItem.id) {
 								found = true;
 							}
 						}
@@ -105,67 +106,84 @@ $(document).ready(function() {
 				else {
 					// pick a random item
 					if (candidates.length > 0) {
-						url = candidates[Math.floor(Math.random() * candidates.length)].url;
+						chosenCandidate = candidates[Math.floor(Math.random() * candidates.length)];
 					}
 				}
 				
-				if (url === null) {
+				if (chosenCandidate === null) {
 					console.log("Can't find something to change to.");
 					// try again in a bit
-					setTimeout(doSomething, 10000);
+					setTimeout(loadNextVideo, 10000);
 					return;
 				}
-				playVideo(url);
+				lastCandidate = chosenCandidate;
+				loadMediaItem(chosenCandidate.mediaItem, chosenCandidate.chosenQualityId);
 			});
 		}
 		
-		function playVideo(url) {
-			console.log("Playing: "+url);
-			$video = $("<video />").addClass("video-js vjs-default-skin");
-			$video.append($("<source />").attr("type", "video/mp4").attr("src", url));
-			// disable browser context menu on video
-			$video.on('contextmenu', function(e) {
-				e.preventDefault();
-			});
-			$(self).append($video);
-		
-			videoJsPlayer = videojs($video[0], {
-				width: "100%",
-				height: "100%",
-				controls: false,
-				techOrder: ["html5", "flash"],
-				autoPlay: false,
-				loop: false
-			}, function() {
-				// called when player loaded.
-				setTimeout(function() {
-					// in timeout as needs videoJsPlayer needs to have been set
-					videoJsPlayer.play();
-				}, 0);
-			});
+		function loadMediaItem(mediaItem, qualityId) {
+			console.log("Loading media item.", mediaItem);
+			var iframeSrc = mediaItem.embed.iframeUrl+"?kiosk=1"; // get the player in kiosk mode
+			$iframe = $("<iframe />").attr("frameborder", 0).attr("allowfullscreen", true).attr("webkitallowfullscreen", true).attr("mozallowfullscreen", true).attr("src", iframeSrc);
+			$(self).append($iframe);
 			
-			videoJsPlayer.on("error", function() {
-				onError("VideoJS error.");
-			});
+			window.onmessage = function(event) {
+				var data = null;
+				try {
+					data = JSON.parse(event.data);
+				} catch(ex){}
+				
+				if (data == null) {
+					return;
+				}
+				
+				if (typeof data.playerApi === "object") {
+					// this is an event from the embeddable player
+					var eventId = data.playerApi.eventId;
+					var state = data.playerApi.state;
+					console.log("Embeddable player event:", eventId, state);
+					playing = state.playing;
+					
+					if (eventId === "ended" || eventId === "typeChanged") {
+						onVideoEnded();
+					}
+					else if (eventId === "pause") {
+						onVideoEnded();
+					}
+				}
+			};
+			apiUpdateTriggerTimerId = setInterval(function() {
+				var data = {
+					playerApi: {
+						action: "STATE_UPDATE"
+					}
+				};
+				$iframe[0].contentWindow.postMessage(JSON.stringify(data), "*");
+			}, 1000);
+			playingCheckTimerId = setTimeout(checkPlaying, 8000);
 			
-			videoJsPlayer.on("ended", function() {
-				onVideoEnded();
-			});
+			function checkPlaying() {
+				if (playingCheckTimerId === null) {
+					return;
+				}
+				if (!playing) {
+					onVideoEnded();
+				}
+				setTimeout(checkPlaying, 1000);
+			}
 		}
 		
 		function onVideoEnded() {
 			console.log("Video ended. Moving on.");
-			videoJsPlayer.dispose();
-			$video.remove();
-			$video = videoJsPlayer = null;
-			doSomething();
-		}
-		
-		function onError(msg) {
-			console.log(msg);
-			setTimeout(function() {
-				location.reload(true);
-			}, 10000);
+			$iframe.remove();
+			$iframe = null;
+			window.onmessage = null;
+			clearTimeout(playingCheckTimerId);
+			playingCheckTimerId = null;
+			clearTimeout(apiUpdateTriggerTimerId);
+			apiUpdateTriggerTimerId = null;
+			playing = false;
+			loadNextVideo();
 		}
 	
 	});
