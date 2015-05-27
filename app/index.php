@@ -28,6 +28,7 @@
         <![endif]-->
     </head>
     <body>
+		<div class="hide-cursor"></div>
 		<div class="container" data-api-key="<?=e($apiKey);?>" data-playlist-id="<?=e($playlistId);?>" data-quality-ids="<?=e($qualityIds);?>" data-randomise="<?=$randomise?"1":"0"?>"></div>
     </body>
 </html>
