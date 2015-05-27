@@ -1,7 +1,7 @@
 <?php
 	$apiKey = $_GET['apiKey'];
 	$playlistId = $_GET['playlistId'];
-	$qualityId = isset($_GET['qualityId']) ? $_GET['qualityId'] : 2;
+	$qualityIds = isset($_GET['qualityIds']) ? $_GET['qualityIds'] : "1,2,3,4,5,6,7,8";
 	$randomise = isset($_GET['random']);
 	
 	function e($a) {
@@ -18,11 +18,9 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
 
         <link rel="stylesheet" href="css/normalize.min.css">
-        <link rel="stylesheet" href="video-js/video-js.min.css">
         <link rel="stylesheet" href="css/main.css">
 		
 		<script src="js/vendor/jquery-1.11.2.min.js"></script>
-		<script src="video-js/video.js"></script>
         <script src="js/main.js"></script>
 
         <!--[if lt IE 9]>
@@ -30,6 +28,6 @@
         <![endif]-->
     </head>
     <body>
-		<div class="container" data-api-key="<?=e($apiKey);?>" data-playlist-id="<?=e($playlistId);?>" data-quality-id="<?=e($qualityId);?>" data-randomise="<?=$randomise?"1":"0"?>"></div>
+		<div class="container" data-api-key="<?=e($apiKey);?>" data-playlist-id="<?=e($playlistId);?>" data-quality-ids="<?=e($qualityIds);?>" data-randomise="<?=$randomise?"1":"0"?>"></div>
     </body>
 </html>
