@@ -10,12 +10,15 @@ $(document).ready(function() {
 		var playlistId = parseInt($(this).attr("data-playlist-id"));
 		var qualityIds = $.map($(this).attr("data-quality-ids").split(","), function(a){return parseInt(a);});
 		var randomise = $(this).attr("data-randomise") === "1"
-		
-		var lastCandidate = null;
+	
 		var $iframe = null;
 		var playingCheckTimerId = null;
 		var apiUpdateTriggerTimerId = null;
 		var playing = false;
+		
+		// array of {mediaItem, chosenQualityId}
+		// items at the front of the array are popped off and played
+		var queue = [];
 		
 		initialise();
 
@@ -23,7 +26,7 @@ $(document).ready(function() {
 			request("permissions", function(data) {
 				// no special permissions needed
 				console.log("Initialised!");
-				loadNextVideo();
+				loadNextItem();
 			});
 		}
 		
@@ -50,8 +53,8 @@ $(document).ready(function() {
 		}
 		
 		
-		// figure out what to do do next and do it
-		function loadNextVideo() {
+		// populate the queue with items
+		function refillQueue(callback) {
 			request("playlists/"+playlistId+"/mediaItems", function(data) {
 				var mediaItems = data.data;
 
@@ -60,7 +63,7 @@ $(document).ready(function() {
 				
 				for (var i=0; i<mediaItems.length; i++) {
 					var mediaItem = mediaItems[i];
-					if (mediaItem.vod === null || !mediaItem.vod.available) {
+					if (!isMediaItemValid(mediaItem)) {
 						continue;
 					}
 					var availableQualityIds = [];
@@ -84,40 +87,59 @@ $(document).ready(function() {
 					});
 				}
 				
-				// now pick a candidate
-				var chosenCandidate = null;
-				if (!randomise) {
-					// pick the next one
-					var found = chosenCandidate !== null;
-					for (var j=0; j<2 && chosenCandidate === null; j++) {
-						for (var i=0; i<candidates.length; i++) {
-							var candidate = candidates[i];
-							if (found) {
-								chosenCandidate = candidate;
-								break;
-							}
-							if (lastCandidate !== null && candidate.mediaItem.id === lastCandidate.mediaItem.id) {
-								found = true;
-							}
-						}
-						found = true;
-					}
+				if (randomise) {
+					shuffle(candidates);
 				}
-				else {
-					// pick a random item
-					if (candidates.length > 0) {
-						chosenCandidate = candidates[Math.floor(Math.random() * candidates.length)];
-					}
+				// reverse array because items are popped of the start of the array
+				candidates.reverse();
+				queue = candidates;
+				if (callback) {
+					callback();
 				}
-				
-				if (chosenCandidate === null) {
-					console.log("Can't find something to change to.");
-					// try again in a bit
-					setTimeout(loadNextVideo, 10000);
+			});
+		}
+		
+		function isMediaItemValid(mediaItem) {
+			return mediaItem.vod !== null && mediaItem.vod.available;
+		}
+		
+		function fillQueueIfNecessary(callback) {
+			if (queue.length > 0) {
+				callback();
+				return;
+			}
+			else {
+				console.log("Queue empty. Refilling...");
+				refillQueue(callback);
+			}
+		}
+		
+		// get the next item off the queue and play it
+		function loadNextItem() {
+			console.log("Loading next item...");
+			fillQueueIfNecessary(function() {
+				if (queue.length === 0) {
+					console.log("Nothing to switch to, queue is empty. Trying again shortly.");
+					setTimeout(function() {
+						loadNextItem();
+					}, 5000);
 					return;
 				}
-				lastCandidate = chosenCandidate;
-				loadMediaItem(chosenCandidate.mediaItem, chosenCandidate.chosenQualityId);
+				candidate = queue.shift();
+				
+				// check this candidate is still available and valid
+				request("playlists/"+playlistId+"/mediaItems/"+candidate.mediaItem.id, function(data) {
+					console.log("Checking next item is still a valid option.");
+					var mediaItem = data.data;
+					if (!isMediaItemValid(mediaItem)) {
+						console.log("Item no longer valid. Skipping...");
+						loadNextItem();
+					}
+					else {
+						console.log("Item valid.");
+						loadMediaItem(candidate.mediaItem, candidate.chosenQualityId);
+					}
+				});
 			});
 		}
 		
@@ -183,9 +205,30 @@ $(document).ready(function() {
 			clearTimeout(apiUpdateTriggerTimerId);
 			apiUpdateTriggerTimerId = null;
 			playing = false;
-			loadNextVideo();
+			loadNextItem();
 		}
 	
 	});
 	
 });
+
+
+
+function shuffle(array) {
+  var currentIndex = array.length, temporaryValue, randomIndex ;
+
+  // While there remain elements to shuffle...
+  while (0 !== currentIndex) {
+
+    // Pick a remaining element...
+    randomIndex = Math.floor(Math.random() * currentIndex);
+    currentIndex -= 1;
+
+    // And swap it with the current element.
+    temporaryValue = array[currentIndex];
+    array[currentIndex] = array[randomIndex];
+    array[randomIndex] = temporaryValue;
+  }
+
+  return array;
+}
