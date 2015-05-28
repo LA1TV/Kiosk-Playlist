@@ -187,7 +187,7 @@ $(document).ready(function() {
 					}
 				};
 				$iframe[0].contentWindow.postMessage(JSON.stringify(data), "*");
-			}, 1000);
+			}, 7000);
 			playingCheckTimerId = setTimeout(checkPlaying, 8000);
 			
 			function checkPlaying() {
